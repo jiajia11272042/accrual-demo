@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>计提记录详情 Demo</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font:13px/1.5 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:#1f1f1f;background:#f0f2f5}
+.top{padding:12px 20px;background:#fff;border-bottom:1px solid #eee;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.top b{margin-right:6px}.btn{display:inline-block;padding:4px 14px;border:1px solid #d9d9d9;border-radius:6px;background:#fff;cursor:pointer;user-select:none}
+.btn.pri{background:#4f6bed;border-color:#4f6bed;color:#fff}.btn.dis{background:#f5f5f5;color:#bfbfbf;cursor:not-allowed}
+.wrap{display:flex;gap:16px;padding:16px 20px}
+.list{width:520px;background:#fff;border-radius:8px;padding:14px 16px;align-self:flex-start}
+.drawer{flex:1;background:#fff;border-radius:8px;padding:16px 20px}
+h3{margin:0 0 12px;font-size:16px}h4{margin:18px 0 8px;font-size:14px}
+table{width:100%;border-collapse:collapse}th{background:#fafafa;text-align:left;font-weight:600;padding:8px 9px;border-bottom:1px solid #f0f0f0;white-space:nowrap}
+td{padding:8px 9px;border-bottom:1px solid #f0f0f0;vertical-align:top}td.n,th.n{text-align:right}
+tr.sel td{background:#f0f5ff}
+.tag{display:inline-block;padding:0 7px;border-radius:4px;font-size:12px;border:1px solid;white-space:nowrap}
+.ok{color:#389e0d;border-color:#b7eb8f;background:#f6ffed}.bad{color:#cf1322;border-color:#ffa39e;background:#fff1f0}
+.warn{color:#d46b08;border-color:#ffd591;background:#fff7e6}.ing{color:#1677ff;border-color:#91caff;background:#e6f4ff}.grey{color:#8c8c8c;border-color:#d9d9d9;background:#fafafa}
+.sub{color:#8c8c8c;font-size:12px}
+.info{display:grid;grid-template-columns:repeat(6,auto);border:1px solid #f0f0f0;border-radius:6px;overflow:hidden}
+.info div{padding:8px 10px;border-bottom:1px solid #f0f0f0}.info .k{background:#fafafa;color:#595959}
+.alert{border-radius:6px;padding:9px 12px;margin:12px 0;border:1px solid}
+.a-ok{background:#f6ffed;border-color:#b7eb8f}.a-bad{background:#fff1f0;border-color:#ffa39e}.a-warn{background:#fff7e6;border-color:#ffd591}.a-ing{background:#e6f4ff;border-color:#91caff}
+.ops{display:flex;gap:8px;margin-bottom:12px}
+.filter{display:flex;gap:6px;margin-bottom:8px;align-items:center}.chip{padding:2px 10px;border:1px solid #d9d9d9;border-radius:12px;cursor:pointer;font-size:12px}.chip.on{border-color:#4f6bed;color:#4f6bed;background:#f0f5ff}
+.reason{color:#cf1322}.muted{color:#bfbfbf}
+.prog{height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;margin-top:6px}.prog i{display:block;height:100%;background:#4f6bed}
+.note{font-size:12px;color:#8c8c8c;margin-top:10px;line-height:1.7}
+</style></head><body>
+<div class="top"><b>切换情况：</b><span class="btn" data-c="ok">① 全部成功</span><span class="btn" data-c="part">② 部分合同失败</span><span class="btn" data-c="allbad">③ 全部失败（明细校验）</span><span class="btn" data-c="reject">④ 全部失败（整批拒绝/异常）</span><span class="btn" data-c="ing">⑤ 推送中</span><span class="btn" data-c="retry">⑥ 重试后成功</span></div>
+<div class="wrap">
+<div class="list"><h3>计提记录</h3><table><thead><tr><th>记录ID</th><th>计提月份</th><th>推送CRM状态</th></tr></thead><tbody id="list"></tbody></table>
+<div class="note">列表直接显示合同维度结果，不点进详情也能看到有几个合同没进 CRM。</div></div>
+<div class="drawer" id="drawer"></div></div>
+<script>
+const C={
+ ok:{id:'REC-20261113001',status:['ok','推送成功'],brief:'12/12 个合同已推送',contracts:[['S003508',500,0,[]],['S004116',120,0,[]],['S003816',86,0,[]]],moreOk:9},
+ part:{id:'REC-20261113002',status:['warn','部分合同失败'],brief:'失败 2/12 个合同',contracts:[['S003508',500,3,[['ES','GLOBAL_APPVAULT_NEW_WIDGET','媒体名称不存在'],['FR','ExternalMedia_Google','媒体名称不存在'],['IT','GLOBAL_GAMECENTER_SDK','媒体名称不存在']]],['S003544',40,2,[['ES','GLOBAL_APPVAULT_NEW_WIDGET','媒体名称不存在'],['CO','GLOBAL_APPVAULT_NEW_WIDGET','媒体名称不存在']]],['S004116',120,0,[]],['S003816',86,0,[]]],moreOk:8},
+ allbad:{id:'REC-20261113003',status:['bad','推送失败'],brief:'失败 2/2 个合同',contracts:[['S003508',500,3,[['ES','GLOBAL_APPVAULT_NEW_WIDGET','媒体名称不存在'],['FR','ExternalMedia_Google','媒体名称不存在'],['IT','GLOBAL_GAMECENTER_SDK','媒体名称不存在']]],['S003544',40,1,[['CO','GLOBAL_APPVAULT_NEW_WIDGET','国家编码不合法']]]],moreOk:0},
+ reject:{id:'REC-20261113004',status:['bad','推送失败'],brief:'失败 3/3 个合同',contracts:[['S003508',500,500,'签名校验失败(4005)'],['S004116',120,120,'签名校验失败(4005)'],['S003816',86,86,'前序连续3个合同被CRM以相同原因拒绝，本次中止未推送']],moreOk:0,batch:'签名校验失败(4005)'},
+ ing:{id:'REC-20261113005',status:['ing','推送中'],brief:'已完成 5/12 个合同',contracts:[['S003508',500,0,[]],['S004116',120,0,[]],['S003816',86,null,[]],['S004268',300,null,[]]],moreOk:0,ing:true},
+ retry:{id:'REC-20261113002',status:['ok','推送成功'],brief:'12/12 个合同已推送（重试 1 次）',contracts:[['S003508',500,0,[]],['S003544',40,0,[]],['S004116',120,0,[]]],moreOk:9,retried:true}
+};
+let cur='part',flt='all';
+const tag=(c,t)=>`<span class="tag ${c}">${t}</span>`;
+function cStatus(c,k){if(k.ing&&c[2]===null)return tag('grey','待推送');if(c[2]===0)return tag('ok','成功');return tag('bad','失败')}
+function render(){
+ const k=C[cur];
+ document.querySelectorAll('.top .btn').forEach(b=>b.classList.toggle('pri',b.dataset.c===cur));
+ const rows=[['REC-20261113001','2026-11',C.ok],['REC-20261113002','2026-11',cur==='retry'?C.retry:C.part],['REC-20261113003','2026-11',C.allbad],['REC-20261113004','2026-11',C.reject],['REC-20261113005','2026-11',C.ing]];
+ document.getElementById('list').innerHTML=rows.map(r=>`<tr class="${r[2].id===k.id?'sel':''}"><td>${r[0]}</td><td>${r[1]}</td><td>${tag(r[2].status[0],r[2].status[1])}<div class="sub">${r[2].brief}</div></td></tr>`).join('');
+ const nC=k.contracts.length+k.moreOk, fC=k.contracts.filter(c=>c[2]).length, nI=k.contracts.reduce((a,c)=>a+c[1],0)+k.moreOk*100;
+ const fI=k.contracts.reduce((a,c)=>a+(typeof c[3]==='string'?c[1]:c[3].length),0);
+ const blocked=k.contracts.reduce((a,c)=>a+(c[2]&&typeof c[3]!=='string'?c[1]-c[3].length:0),0);
+ let banner='';
+ if(cur==='ok')banner=`<div class="alert a-ok">✅ 全部 ${nC} 个合同、${nI} 条明细已推送到 CRM。</div>`;
+ if(cur==='retry')banner=`<div class="alert a-ok">✅ 全部 ${nC} 个合同已推送到 CRM。第 1 次推送有 2 个合同失败，11-13 10:20 重试后成功。</div>`;
+ if(cur==='part')banner=`<div class="alert a-warn">⚠️ <b>${fC} 个合同未推送到 CRM</b>（共 ${nC} 个），这些合同在 CRM 中查不到本次计提；其余 ${nC-fC} 个合同已成功推送。<br/>同一合同只要有 1 条明细校验失败，<b>整个合同都不会入库</b>：其中 ${fI} 条有失败原因，另外 ${blocked} 条本身无问题，随合同一起未入库。修正失败原因后点「重试推送」，只重推这 ${fC} 个合同。</div>`;
+ if(cur==='allbad')banner=`<div class="alert a-bad">❌ <b>全部 ${nC} 个合同都未推送到 CRM</b>。${fI} 条明细校验失败，导致所在合同整体未入库。修正后点「重试推送」。</div>`;
+ if(cur==='reject')banner=`<div class="alert a-bad">❌ <b>全部 ${nC} 个合同都未推送到 CRM</b>。CRM 整批拒绝：${k.batch}。这类问题不是数据问题，请联系研发处理后再重试。</div>`;
+ if(cur==='ing')banner=`<div class="alert a-ing">⏳ 正在按合同逐个推送：已完成 5 / ${nC} 个合同，预计还需 1~2 分钟。推送完成后会飞书通知。<div class="prog"><i style="width:42%"></i></div></div>`;
+ const canRetry=fC>0&&!k.ing;
+ let h=`<h3>计提记录详情 · ${k.id}</h3>
+ <div class="ops"><span class="btn ${canRetry?'pri':'dis'}">${canRetry?`重试推送（${fC} 个失败合同）`:'重试推送'}</span><span class="btn">下载底稿</span><span class="btn">CRM附件</span>${fC?'<span class="btn">下载失败明细</span>':''}</div>
+ <div class="info"><div class="k">计提月份</div><div>2026-11</div><div class="k">计提类型</div><div>收入计提</div><div class="k">计提人</div><div>v-zhangzijing1@xiaomi.com</div>
+ <div class="k">推送CRM状态</div><div>${tag(k.status[0],k.status[1])}</div><div class="k">合同</div><div>${k.ing?`已完成 5 / ${nC}`:`成功 ${nC-fC} / 失败 ${fC} / 共 ${nC}`}</div><div class="k">明细</div><div>${nI.toLocaleString()} 条${fI?`（失败 ${fI}，随合同未入库 ${blocked}）`:''}</div></div>
+ ${banner}
+ <h4>合同推送结果</h4>
+ <table><thead><tr><th>合同ID</th><th>推送状态</th><th class="n">明细数</th><th class="n">有失败原因的明细</th><th>失败原因汇总</th><th class="n">计提金额（美金）</th><th></th></tr></thead><tbody>`;
+ const sorted=[...k.contracts].sort((a,b)=>(b[2]?1:0)-(a[2]?1:0));
+ h+=sorted.map(c=>{let rs='—';if(typeof c[3]==='string')rs=`<span class="reason">${c[3]}</span>（整合同）`;else if(c[3].length){const g={};c[3].forEach(x=>g[x[2]]=(g[x[2]]||0)+1);rs=Object.entries(g).map(([r,n])=>`<span class="reason">${r}</span> ${n} 条`).join('；')}
+  return `<tr><td>${c[0]}</td><td>${cStatus(c,k)}</td><td class="n">${c[1]}</td><td class="n">${c[2]===null?'—':(typeof c[3]==='string'?'全部':c[3].length)}</td><td>${rs}</td><td class="n">${(c[1]*23.17).toFixed(2)}</td><td>${c[2]?'<a href="#" onclick="flt=\''+c[0]+'\';render();return false">查看明细</a>':''}</td></tr>`}).join('');
+ if(k.moreOk)h+=`<tr><td colspan="7" class="sub">…… 另有 ${k.moreOk} 个合同推送成功</td></tr>`;
+ h+=`</tbody></table>`;
+ // detail list
+ const det=[];k.contracts.forEach(c=>{if(typeof c[3]==='string'){[['OT','海外游戏中心'],['TR','海外浏览器']].forEach(d=>det.push([c[0],d[0],d[1],'bad','未入库',c[3]]))}
+  else{c[3].forEach(x=>det.push([c[0],x[0],x[1],'bad','未入库',x[2]]));if(c[2])[['OT','海外游戏中心'],['TR','海外浏览器'],['RU','全搜']].forEach(d=>det.push([c[0],d[0],d[1],'bad','未入库','']));
+  if(c[2]===0)[['IN','海外应用商店'],['ID','全搜']].forEach(d=>det.push([c[0],d[0],d[1],'ok','成功','']));if(c[2]===null)[['IN','海外应用商店']].forEach(d=>det.push([c[0],d[0],d[1],'grey','待推送','']))}});
+ const shown=det.filter(d=>flt==='all'||(flt==='fail'&&d[3]==='bad')||(flt==='reason'&&d[5])||d[0]===flt);
+ h+=`<h4>明细列表</h4><div class="filter"><span class="sub">筛选：</span>${[['all','全部'],['fail','未入库'],['reason','有失败原因']].map(f=>`<span class="chip ${flt===f[0]?'on':''}" onclick="flt='${f[0]}';render()">${f[1]}</span>`).join('')}${flt.startsWith('S')?`<span class="chip on">合同 ${flt} ✕</span>`:''}</div>
+ <table><thead><tr><th>合同ID</th><th>国家</th><th>媒体</th><th>推送状态</th><th>失败原因</th></tr></thead><tbody>`+
+ shown.map(d=>`<tr><td>${d[0]}</td><td>${d[1]}</td><td>${d[2]}</td><td>${tag(d[3],d[4])}</td><td>${d[5]?`<span class="reason">${d[5]}</span>`:'<span class="muted">—</span>'}</td></tr>`).join('')+`</tbody></table>
+ <div class="note">说明：明细的「推送状态」与所在合同一致（合同失败则整合同明细都是「未入库」）；「失败原因」只展示 CRM 返回的原因，没有原因的明细留空，原因见上方合同汇总与提示。</div>`;
+ document.getElementById('drawer').innerHTML=h;
+}
+document.querySelectorAll('.top .btn').forEach(b=>b.onclick=()=>{cur=b.dataset.c;flt='all';render()});
+const q=new URLSearchParams(location.search);if(q.get('c'))cur=q.get('c');if(q.get('f'))flt=q.get('f');render();
+</script></body></html>
